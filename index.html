@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="candle">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e17">
+<meta name="color-scheme" content="dark">
+<title>Melt Timer</title>
+<meta name="description" content="A focus timer where your session melts away — a candle burning down or an ice cube melting in real time.">
+
+<!-- Icons & install -->
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Melt">
+
+<!-- Link previews. For best results replace these relative paths with your full site URL. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Melt Timer">
+<meta property="og:description" content="A calm focus timer: a candle burns down or an ice cube melts as your session runs.">
+<meta property="og:image" content="images/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-state="idle" data-phase="focus">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-candle" viewBox="0 0 24 24"><path d="M12 2.8c1.5 1.7 1.8 3 1 4.1-.5.7-1.5.7-2 0-.8-1.1-.5-2.4 1-4.1z"/><path d="M9 10.5h6V20H9z"/><path d="M5.5 20.5h13"/></symbol>
+    <symbol id="i-ice" viewBox="0 0 24 24"><path d="M12 3.2l7.6 4.2v9.2L12 20.8l-7.6-4.2V7.4z"/><path d="M4.4 7.4L12 11.6l7.6-4.2M12 11.6v9.2"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.2 6.4a7.6 7.6 0 0 1 0 11.2"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.8 12a7.2 7.2 0 1 0 2.1-5.1"/><path d="M4.6 4.6v4.2h4.2"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  </defs>
+</svg>
+
+<div class="backdrop" aria-hidden="true">
+  <div class="layer warm"></div>
+  <div class="layer cool"></div>
+  <div class="vignette"></div>
+</div>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-name">melt</span></div>
+    <div class="seg" role="radiogroup" aria-label="Melting object">
+      <span class="seg-thumb" aria-hidden="true"></span>
+      <button type="button" role="radio" data-mode="candle" aria-checked="true" title="Candle (C)"><svg class="i"><use href="#i-candle"/></svg><span>Candle</span></button>
+      <button type="button" role="radio" data-mode="ice" aria-checked="false" title="Ice cube (I)"><svg class="i"><use href="#i-ice"/></svg><span>Ice</span></button>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="icon-btn" id="focusBtn" aria-label="Focus mode (F)" title="Focus mode (F)"><svg class="i"><use href="#i-focus"/></svg></button>
+      <button type="button" class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="panel"><svg class="i"><use href="#i-sliders"/></svg></button>
+    </div>
+  </header>
+
+  <main class="main">
+    <label class="task-wrap">
+      <span class="sr-only">What are you studying?</span>
+      <input id="task" class="task" type="text" maxlength="80" placeholder="What are you studying?" autocomplete="off" spellcheck="false" enterkeyhint="done">
+    </label>
+
+    <div class="stage" id="stage" role="img" aria-label="Melting timer visual"></div>
+
+    <div class="readout">
+      <div class="phase-row">
+        <span id="phase" class="phase" aria-live="polite">Ready</span>
+        <button type="button" id="skipBtn" class="link-btn" hidden>Skip break</button>
+      </div>
+      <div id="clock" class="clock" role="timer" aria-live="off">25:00</div>
+      <div id="dots" class="dots" hidden aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="dock">
+      <div class="presets" id="presets" role="group" aria-label="Session length in minutes">
+        <button type="button" class="chip" data-min="15" aria-pressed="false">15</button>
+        <button type="button" class="chip" data-min="25" aria-pressed="true">25</button>
+        <button type="button" class="chip" data-min="45" aria-pressed="false">45</button>
+        <button type="button" class="chip" data-min="60" aria-pressed="false">60</button>
+        <button type="button" class="chip" data-min="90" aria-pressed="false">90</button>
+        <label class="chip custom" id="customChip" title="Custom length, 1–180 minutes">
+          <input id="customMin" type="number" inputmode="numeric" min="1" max="180" step="1" placeholder="—" aria-label="Custom minutes, 1 to 180"><span>min</span>
+        </label>
+      </div>
+      <div class="controls">
+        <button type="button" class="icon-btn lg" id="resetBtn" aria-label="Reset (R)" title="Reset (R)"><svg class="i"><use href="#i-reset"/></svg></button>
+        <button type="button" class="primary" id="mainBtn">Start</button>
+        <button type="button" class="icon-btn lg" id="muteBtn" aria-label="Mute (M)" title="Mute (M)" aria-pressed="false"><svg class="i"><use href="#i-vol"/></svg></button>
+      </div>
+      <div class="today" id="todayLine">No sessions yet today</div>
+    </div>
+  </main>
+</div>
+
+<button type="button" class="focus-exit" id="focusExit" aria-label="Exit focus mode"><svg class="i"><use href="#i-close"/></svg>Exit focus</button>
+<div class="scrim" id="scrim"></div>
+
+<aside class="panel" id="panel" aria-label="Settings" aria-hidden="true">
+  <div class="panel-head">
+    <h2>Settings</h2>
+    <button type="button" class="icon-btn" id="closePanel" aria-label="Close settings"><svg class="i"><use href="#i-close"/></svg></button>
+  </div>
+
+  <section>
+    <h3>Session</h3>
+    <div class="row">
+      <div><div class="label">Pomodoro mode</div><div class="sub">Auto-start a break after each session, with a longer break after every 4.</div></div>
+      <label class="switch"><input type="checkbox" id="pomo" aria-label="Pomodoro mode"><span></span></label>
+    </div>
+    <div class="sub-opts" id="pomoOpts">
+      <div class="row"><div class="label">Short break</div><div class="num"><input type="number" id="shortBreak" min="1" max="30" inputmode="numeric" aria-label="Short break minutes"> min</div></div>
+      <div class="row"><div class="label">Long break</div><div class="num"><input type="number" id="longBreak" min="1" max="60" inputmode="numeric" aria-label="Long break minutes"> min</div></div>
+      <div class="row"><div class="label">Auto-start next session</div><label class="switch"><input type="checkbox" id="autoFocus" aria-label="Auto-start next focus session"><span></span></label></div>
+    </div>
+    <div class="row">
+      <div><div class="label">Keep screen awake</div><div class="sub" id="wakeNote">While a session is running.</div></div>
+      <label class="switch"><input type="checkbox" id="wake" aria-label="Keep screen awake"><span></span></label>
+    </div>
+  </section>
+
+  <section>
+    <h3>Sound</h3>
+    <div class="master-row">
+      <button type="button" class="icon-btn" id="muteBtn2" aria-label="Mute all sound" aria-pressed="false"><svg class="i"><use href="#i-vol"/></svg></button>
+      <input type="range" id="master" min="0" max="100" step="1" aria-label="Master volume">
+      <span class="val" id="masterVal">70</span>
+    </div>
+    <p class="note alert" id="audioNote" hidden>Sound will start after your first tap or key press.</p>
+    <div id="sounds"></div>
+    <div class="row">
+      <div class="label">Chime volume</div>
+      <div style="display:flex;align-items:center;gap:10px;flex:1;max-width:58%">
+        <input type="range" id="chime" min="0" max="100" step="1" aria-label="Chime volume">
+        <button type="button" class="mini" id="testChime">Test</button>
+      </div>
+    </div>
+    <p class="note">A warm chime marks the end of a session; a softer one ends a break.</p>
+  </section>
+
+  <section>
+    <h3>Haptics</h3>
+    <div class="hap-body" id="hapBody">
+      <div class="row"><div class="label">Vibration</div><label class="switch"><input type="checkbox" id="hapOn" aria-label="Vibration"><span></span></label></div>
+      <div class="row">
+        <div class="label">Intensity</div>
+        <div class="pills" id="hapInt" role="radiogroup" aria-label="Vibration intensity">
+          <button type="button" role="radio" data-v="light" aria-checked="false">Light</button>
+          <button type="button" role="radio" data-v="medium" aria-checked="true">Medium</button>
+          <button type="button" role="radio" data-v="strong" aria-checked="false">Strong</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="label">Reminder</div>
+        <select id="hapIv" aria-label="Vibration reminder interval">
+          <option value="0">Off</option>
+          <option value="5">Every 5 min</option>
+          <option value="10">Every 10 min</option>
+          <option value="15">Every 15 min</option>
+          <option value="20">Every 20 min</option>
+          <option value="30">Every 30 min</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="sub" style="margin:0">Also buzzes at start, at 1 minute left, and with a distinct pattern at the end.</div>
+        <button type="button" class="mini" id="testHap">Test</button>
+      </div>
+    </div>
+    <p class="note" id="hapNote"></p>
+  </section>
+
+  <section>
+    <h3>Today</h3>
+    <div class="today-sum"><div><b id="sumSessions">0</b><span>sessions</span></div><div><b id="sumMinutes">0</b><span>focus min</span></div></div>
+    <ol class="log" id="logList"></ol>
+    <button type="button" class="mini" id="clearToday">Clear today</button>
+  </section>
+
+  <section>
+    <h3>Shortcuts</h3>
+    <div class="keys">
+      <div><kbd>Space</kbd>Start / pause</div>
+      <div><kbd>R</kbd>Reset</div>
+      <div><kbd>M</kbd>Mute</div>
+      <div><kbd>C</kbd> <kbd>I</kbd>Candle / ice</div>
+      <div><kbd>F</kbd>Focus mode</div>
+      <div><kbd>Esc</kbd>Close / exit</div>
+    </div>
+    <p class="note">Everything is saved in this browser only.</p>
+  </section>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<noscript><p style="position:fixed;inset:auto 0 40% 0;text-align:center;z-index:50">Melt Timer needs JavaScript to run.</p></noscript>
+
+<script src="app.js"></script>
+</body>
+</html>
